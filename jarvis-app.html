@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>JARVIS — Personal OS</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=Rajdhani:wght@300;400;500;600;700&family=Exo+2:ital,wght@0,200;0,300;0,400;0,600;1,300&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --white: #FFFFFF;
+    --snow: #F8F5FF;
+    --ice:  #F0EBFF;
+    --mist: #E8E0FF;
+    --p50:  #F3EEFF;
+    --p100: #E4D5FF;
+    --p200: #C9AAFF;
+    --p400: #9B6DFF;
+    --p500: #7C3AED;
+    --p600: #6D28D9;
+    --p700: #5B21B6;
+    --ink:  #1A0A2E;
+    --ink2: #3D2060;
+    --glow: rgba(124,58,237,0.22);
+  }
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  body {
+    font-family:'Rajdhani',sans-serif;
+    background:linear-gradient(135deg,#DDD5F5 0%,#F0EBFF 50%,#E2D8FF 100%);
+    display:flex; justify-content:center; align-items:center;
+    min-height:100vh; overflow:hidden;
+  }
+
+  /* PHONE */
+  .phone {
+    width:390px; height:844px;
+    background:var(--white);
+    border-radius:50px;
+    position:relative; overflow:hidden;
+    box-shadow:
+      0 0 0 1.5px rgba(124,58,237,0.12),
+      0 0 0 8px rgba(255,255,255,0.9),
+      0 0 0 9.5px rgba(124,58,237,0.08),
+      0 24px 70px rgba(124,58,237,0.18),
+      0 50px 100px rgba(0,0,0,0.1);
+  }
+
+  /* SCREENS */
+  .screen {
+    position:absolute; inset:0; border-radius:50px; overflow:hidden;
+    opacity:0; pointer-events:none;
+    transition:opacity .38s cubic-bezier(.4,0,.2,1),transform .38s cubic-bezier(.4,0,.2,1);
+    transform:translateX(26px);
+  }
+  .screen.active { opacity:1; pointer-events:all; transform:translateX(0); }
+  .screen.exit-left { opacity:0; transform:translateX(-26px); }
+
+  /* dot grid */
+  .grid-bg {
+    position:absolute; inset:0;
+    background-image:radial-gradient(circle,rgba(124,58,237,0.1) 1px,transparent 1px);
+    background-size:22px 22px; pointer-events:none; z-index:0;
+  }
+
+  /* STATUS */
+  .status-bar {
+    position:absolute; top:16px; left:0; right:0;
+    display:flex; justify-content:space-between; align-items:center;
+    padding:0 28px; z-index:100;
+    font-family:'Orbitron',monospace; font-size:10px; color:var(--ink2); letter-spacing:1px;
+  }
+  .status-time { font-weight:700; font-size:13px; color:var(--ink); }
+  .status-icons { display:flex; gap:6px; align-items:center; }
+
+  /* ═══ HOME ═══ */
+  #home { background:linear-gradient(168deg,#FDFCFF 0%,#F4EEFF 55%,#EDE5FF 100%); }
+
+  .home-pill { position:absolute; top:0; left:0; right:0; height:5px; background:linear-gradient(90deg,var(--p700),var(--p400),var(--p200)); z-index:10; }
+
+  .blob1 {
+    position:absolute; top:-80px; left:-60px;
+    width:280px; height:280px; border-radius:50%;
+    background:radial-gradient(circle,rgba(124,58,237,0.1),transparent 70%);
+    pointer-events:none;
+  }
+  .blob2 {
+    position:absolute; top:-30px; right:-50px;
+    width:200px; height:200px; border-radius:50%;
+    background:radial-gradient(circle,rgba(155,109,255,0.08),transparent 70%);
+    pointer-events:none;
+  }
+
+  .home-header { position:absolute; top:50px; left:0; right:0; padding:0 24px; z-index:10; }
+  .jarvis-label {
+    font-family:'Orbitron',monospace; font-size:9px; letter-spacing:4px; color:var(--p500);
+    text-transform:uppercase; display:flex; align-items:center; gap:6px;
+  }
+  .jarvis-label::before {
+    content:''; width:6px; height:6px; border-radius:50%;
+    background:var(--p500); box-shadow:0 0 8px var(--p400); animation:blink 1.6s infinite;
+  }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.2} }
+  .greeting { font-family:'Orbitron',monospace; font-size:19px; font-weight:900; color:var(--ink); line-height:1.2; margin-top:4px; }
+  .greeting span { color:var(--p500); }
+  .sub-greeting { font-family:'Exo 2',sans-serif; font-size:11.5px; color:rgba(61,32,96,0.5); margin-top:3px; font-style:italic; }
+
+  /* HUD ring */
+  .hud-ring { position:absolute; top:46px; right:22px; width:62px; height:62px; z-index:10; }
+
+  /* BODY AREA */
+  .body-area { position:absolute; top:138px; left:0; right:0; height:420px; display:flex; align-items:flex-start; }
+
+  .avatar-side { width:178px; position:relative; height:400px; flex-shrink:0; }
+  .scan-overlay {
+    position:absolute; inset:0;
+    background:repeating-linear-gradient(0deg,transparent,transparent 4px,rgba(124,58,237,0.02) 4px,rgba(124,58,237,0.02) 5px);
+    pointer-events:none; z-index:5; border-radius:8px;
+  }
+  .scan-line {
+    position:absolute; left:12px; right:12px; height:2px;
+    background:linear-gradient(90deg,transparent,var(--p400),transparent);
+    opacity:.45; animation:scan 3.5s linear infinite;
+  }
+  @keyframes scan { 0%{top:30px;opacity:0} 8%{opacity:.45} 92%{opacity:.45} 100%{top:370px;opacity:0} }
+  .hologram-tag {
+    position:absolute; top:28px; left:12px; z-index:6;
+    font-family:'Orbitron',monospace; font-size:8px; color:var(--p500); letter-spacing:2px;
+    background:rgba(255,255,255,0.85); padding:3px 8px; border-radius:20px;
+    border:1px solid var(--p100); display:flex; align-items:center; gap:5px;
+    box-shadow:0 2px 8px rgba(124,58,237,0.1);
+  }
+  .hologram-tag::before { content:''; width:5px; height:5px; border-radius:50%; background:var(--p400); box-shadow:0 0 6px var(--p400); animation:blink 1.5s infinite; }
+  .avatar-platform { position:absolute; bottom:14px; left:50%; transform:translateX(-50%); width:110px; height:14px; background:radial-gradient(ellipse,rgba(124,58,237,0.18),transparent 70%); border-radius:50%; filter:blur(4px); }
+  .avatar-svg {
+    position:absolute; bottom:18px; left:50%; transform:translateX(-50%);
+    width:126px;
+    filter:drop-shadow(0 8px 24px rgba(124,58,237,0.25)) drop-shadow(0 2px 6px rgba(0,0,0,0.07));
+    animation:float 4s ease-in-out infinite; z-index:4;
+  }
+  @keyframes float { 0%,100%{transform:translateX(-50%) translateY(0)} 50%{transform:translateX(-50%) translateY(-7px)} }
+
+  /* STATS */
+  .stats-side { flex:1; padding:16px 16px 0 6px; display:flex; flex-direction:column; gap:8px; }
+  .stat-card {
+    background:var(--white); border:1.5px solid var(--p100); border-radius:14px;
+    padding:10px 14px; position:relative; overflow:hidden;
+    box-shadow:0 2px 12px rgba(124,58,237,0.07);
+  }
+  .stat-card::before { content:''; position:absolute; top:0; left:0; width:3px; height:100%; background:linear-gradient(180deg,var(--p500),var(--p200)); border-radius:3px 0 0 3px; }
+  .stat-label { font-family:'Orbitron',monospace; font-size:8px; letter-spacing:2px; color:var(--p500); text-transform:uppercase; }
+  .stat-value { font-family:'Orbitron',monospace; font-size:20px; font-weight:900; color:var(--ink); line-height:1; margin-top:2px; }
+  .stat-value span { font-size:10px; color:rgba(61,32,96,0.4); font-weight:400; }
+  .stat-bar { height:3px; background:var(--p50); border-radius:2px; margin-top:6px; overflow:hidden; }
+  .stat-bar-fill { height:100%; border-radius:2px; background:linear-gradient(90deg,var(--p600),var(--p200)); box-shadow:0 0 6px var(--glow); }
+  .vitals-row { display:grid; grid-template-columns:1fr 1fr; gap:7px; }
+  .vital-mini { background:var(--white); border:1.5px solid var(--p100); border-radius:12px; padding:8px; text-align:center; box-shadow:0 2px 8px rgba(124,58,237,0.05); }
+  .vital-mini-label { font-family:'Orbitron',monospace; font-size:7px; letter-spacing:1px; color:var(--p400); }
+  .vital-mini-value { font-family:'Rajdhani',sans-serif; font-size:15px; font-weight:700; color:var(--ink); margin-top:1px; }
+
+  /* CAT GRID */
+  .categories-section { position:absolute; bottom:22px; left:0; right:0; padding:0 18px; }
+  .cat-section-title { font-family:'Orbitron',monospace; font-size:8px; letter-spacing:3px; color:rgba(124,58,237,0.45); text-transform:uppercase; margin-bottom:10px; padding-left:2px; }
+  .cat-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:9px; }
+  .cat-btn {
+    background:var(--white); border:1.5px solid var(--p100); border-radius:16px;
+    padding:11px 5px; display:flex; flex-direction:column; align-items:center; gap:5px;
+    cursor:pointer; transition:all .18s ease;
+    box-shadow:0 2px 10px rgba(124,58,237,0.06); position:relative; overflow:hidden;
+  }
+  .cat-btn:active { transform:scale(0.93); background:var(--p50); border-color:var(--p400); box-shadow:0 0 16px var(--glow); }
+  .cat-icon { font-size:19px; line-height:1; }
+  .cat-name { font-family:'Exo 2',sans-serif; font-size:8.5px; font-weight:600; color:var(--ink2); text-align:center; }
+
+  /* ═══ INNER PAGES ═══ */
+  .inner-page { display:flex; flex-direction:column; height:100%; }
+  .page-header {
+    padding:58px 24px 18px; position:relative; flex-shrink:0;
+    background:var(--white); border-bottom:1px solid var(--p100);
+  }
+  .page-header::before { content:''; position:absolute; top:0; left:0; right:0; height:4px; background:linear-gradient(90deg,var(--p700),var(--p400),var(--p200)); }
+  .back-btn {
+    position:absolute; top:54px; left:20px; width:36px; height:36px; border-radius:50%;
+    background:var(--p50); border:1.5px solid var(--p100); display:flex; align-items:center; justify-content:center;
+    cursor:pointer; font-size:18px; color:var(--p500); transition:all .2s; box-shadow:0 2px 8px rgba(124,58,237,0.1);
+  }
+  .back-btn:active { transform:scale(0.9); background:var(--p100); }
+  .page-title-area { padding-left:50px; }
+  .page-category-label { font-family:'Orbitron',monospace; font-size:8px; letter-spacing:3px; color:var(--p400); text-transform:uppercase; }
+  .page-title { font-family:'Orbitron',monospace; font-size:22px; font-weight:900; color:var(--ink); line-height:1.1; margin-top:2px; }
+  .page-content { flex:1; overflow-y:auto; padding:16px 18px 30px; background:var(--snow); scrollbar-width:none; }
+  .page-content::-webkit-scrollbar { display:none; }
+
+  /* CARDS */
+  .info-card { background:var(--white); border:1.5px solid var(--p100); border-radius:18px; padding:16px; margin-bottom:11px; box-shadow:0 2px 14px rgba(124,58,237,0.06); position:relative; overflow:hidden; }
+  .info-card-title {
+    font-family:'Orbitron',monospace; font-size:10px; letter-spacing:2px;
+    color:var(--p500); text-transform:uppercase; margin-bottom:10px;
+    display:flex; align-items:center; gap:8px;
+  }
+  .info-card-title::after { content:''; flex:1; height:1px; background:linear-gradient(90deg,var(--p100),transparent); }
+  .info-card p { font-family:'Exo 2',sans-serif; font-size:13px; color:rgba(26,10,46,0.65); line-height:1.6; }
+
+  .progress-item { margin-bottom:13px; }
+  .progress-header { display:flex; justify-content:space-between; margin-bottom:5px; }
+  .progress-label { font-family:'Rajdhani',sans-serif; font-size:13px; font-weight:600; color:var(--ink2); }
+  .progress-pct { font-family:'Orbitron',monospace; font-size:11px; color:var(--p500); font-weight:700; }
+  .progress-bar { height:6px; background:var(--p50); border-radius:3px; overflow:hidden; }
+  .progress-fill { height:100%; border-radius:3px; background:linear-gradient(90deg,var(--p600),var(--p200)); box-shadow:0 0 8px rgba(124,58,237,0.28); }
+
+  .action-row { display:grid; grid-template-columns:1fr 1fr; gap:9px; margin-bottom:11px; }
+  .action-tile { background:var(--white); border:1.5px solid var(--p100); border-radius:16px; padding:14px 10px; text-align:center; cursor:pointer; transition:all .18s; box-shadow:0 2px 10px rgba(124,58,237,0.05); }
+  .action-tile:active { transform:scale(0.95); background:var(--p50); border-color:var(--p400); }
+  .action-tile-icon { font-size:24px; margin-bottom:5px; }
+  .action-tile-label { font-family:'Rajdhani',sans-serif; font-size:12px; font-weight:600; color:var(--ink2); }
+
+  .tag-row { display:flex; flex-wrap:wrap; gap:7px; margin-top:8px; }
+  .tag { background:var(--p50); border:1px solid var(--p100); border-radius:20px; padding:4px 11px; font-family:'Exo 2',sans-serif; font-size:11px; color:var(--p600); font-weight:600; }
+
+  .mood-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:9px; }
+  .mood-tile { background:var(--white); border:1.5px solid var(--p100); border-radius:16px; padding:14px 8px; text-align:center; cursor:pointer; transition:all .18s; box-shadow:0 2px 8px rgba(124,58,237,0.05); }
+  .mood-tile:active { background:var(--p50); transform:scale(0.95); }
+  .mood-tile.selected { border-color:var(--p500); background:var(--p50); box-shadow:0 0 14px rgba(124,58,237,0.2); }
+  .mood-emoji { font-size:26px; }
+  .mood-label { font-family:'Rajdhani',sans-serif; font-size:11px; color:var(--ink2); margin-top:4px; font-weight:600; }
+
+  .quote-card { background:linear-gradient(135deg,var(--p600) 0%,var(--p500) 100%); border-radius:20px; padding:24px 20px; margin-bottom:11px; position:relative; overflow:hidden; box-shadow:0 8px 30px rgba(124,58,237,0.25); }
+  .quote-card::before { content:''; position:absolute; top:-40px; right:-40px; width:160px; height:160px; border-radius:50%; background:rgba(255,255,255,0.07); }
+  .quote-mark { font-family:'Orbitron',monospace; font-size:56px; color:rgba(255,255,255,0.13); line-height:0.8; position:absolute; top:12px; left:16px; }
+  .quote-text { font-family:'Exo 2',sans-serif; font-size:14px; font-style:italic; font-weight:300; color:rgba(255,255,255,0.95); line-height:1.7; position:relative; z-index:1; padding-top:12px; }
+  .quote-author { font-family:'Orbitron',monospace; font-size:9px; letter-spacing:2px; color:rgba(255,255,255,0.55); margin-top:12px; text-align:right; }
+
+  .quote-card-light { background:var(--white); border:1.5px solid var(--p100); border-radius:20px; padding:20px; margin-bottom:11px; box-shadow:0 2px 14px rgba(124,58,237,0.07); position:relative; overflow:hidden; }
+  .quote-card-light .quote-mark { color:var(--p100); }
+  .quote-card-light .quote-text { color:var(--ink2); }
+  .quote-card-light .quote-author { color:var(--p400); }
+
+  .outfit-card { display:flex; align-items:center; gap:12px; background:var(--white); border:1.5px solid var(--p100); border-radius:16px; padding:13px; margin-bottom:9px; cursor:pointer; transition:all .18s; box-shadow:0 2px 10px rgba(124,58,237,0.05); }
+  .outfit-card:active { background:var(--p50); transform:scale(0.98); }
+  .outfit-color { width:44px; height:44px; border-radius:12px; flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:22px; }
+  .outfit-name { font-family:'Rajdhani',sans-serif; font-size:14px; font-weight:700; color:var(--ink); }
+  .outfit-desc { font-family:'Exo 2',sans-serif; font-size:11px; color:rgba(61,32,96,0.5); margin-top:2px; }
+
+  .step-card { display:flex; align-items:center; gap:13px; padding:13px; background:var(--white); border:1.5px solid var(--p100); border-radius:14px; margin-bottom:9px; box-shadow:0 2px 8px rgba(124,58,237,0.04); }
+  .step-num { width:32px; height:32px; border-radius:50%; background:linear-gradient(135deg,var(--p600),var(--p400)); display:flex; align-items:center; justify-content:center; font-family:'Orbitron',monospace; font-size:12px; font-weight:700; color:white; flex-shrink:0; box-shadow:0 4px 12px rgba(124,58,237,0.3); }
+  .step-title { font-family:'Rajdhani',sans-serif; font-size:14px; font-weight:600; color:var(--ink); }
+  .step-sub { font-family:'Exo 2',sans-serif; font-size:11px; color:rgba(61,32,96,0.5); margin-top:2px; }
+
+  .metric-row { display:grid; grid-template-columns:1fr 1fr; gap:9px; margin-bottom:11px; }
+  .metric-card { background:var(--white); border:1.5px solid var(--p100); border-radius:16px; padding:15px 13px; box-shadow:0 2px 10px rgba(124,58,237,0.06); }
+  .metric-icon { font-size:22px; margin-bottom:6px; }
+  .metric-value { font-family:'Orbitron',monospace; font-size:19px; font-weight:700; color:var(--ink); }
+  .metric-label { font-family:'Exo 2',sans-serif; font-size:11px; color:rgba(61,32,96,0.45); margin-top:3px; }
+
+  .divider { height:1px; background:linear-gradient(90deg,transparent,var(--p100),transparent); margin:14px 0; }
+  .corner-accent { position:absolute; top:0; right:0; width:80px; height:80px; background:radial-gradient(circle at top right,rgba(124,58,237,0.08),transparent 70%); pointer-events:none; }
+</style>
+</head>
+<body>
+<div class="phone">
+
+  <!-- HOME -->
+  <div class="screen active" id="home">
+    <div class="home-pill"></div>
+    <div class="grid-bg"></div>
+    <div class="blob1"></div>
+    <div class="blob2"></div>
+
+    <div class="status-bar">
+      <span class="status-time">09:41</span>
+      <span class="status-icons">
+        <svg width="16" height="10" viewBox="0 0 16 10" fill="rgba(61,32,96,0.55)"><rect x="0" y="4" width="3" height="6" rx="1"/><rect x="4.5" y="2.5" width="3" height="7.5" rx="1"/><rect x="9" y="1" width="3" height="9" rx="1"/><rect x="13.5" y="0" width="2.5" height="10" rx="1"/></svg>
+        <svg width="14" height="10" viewBox="0 0 14 10" fill="rgba(61,32,96,0.55)"><path d="M7 2C9.5 2 11.7 3.1 13.2 4.8L14 4C12.3 2 9.8 1 7 1S1.7 2 0 4l0.8 0.8C2.3 3.1 4.5 2 7 2z"/><path d="M7 4.5C8.7 4.5 10.2 5.2 11.3 6.3L12 5.6C10.7 4.3 8.9 3.5 7 3.5S3.3 4.3 2 5.6l0.7 0.7C3.8 5.2 5.3 4.5 7 4.5z"/><circle cx="7" cy="8" r="1.5"/></svg>
+        <span style="font-size:11px;color:rgba(61,32,96,0.65)">87%</span>
+      </span>
+    </div>
+
+    <div class="home-header">
+      <div class="jarvis-label">J.A.R.V.I.S — Personal OS</div>
+      <div class="greeting">Good Morning, <span>Boss.</span></div>
+      <div class="sub-greeting">All systems nominal. Ready to dominate.</div>
+    </div>
+
+    <div class="hud-ring">
+      <svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="32" cy="32" r="28" fill="none" stroke="var(--p100)" stroke-width="2.5"/>
+        <circle cx="32" cy="32" r="28" fill="none" stroke="url(#hg)" stroke-width="2.5" stroke-dasharray="118 58" stroke-dashoffset="-14" stroke-linecap="round"/>
+        <defs><linearGradient id="hg" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="#6D28D9"/><stop offset="100%" stop-color="#C9AAFF"/></linearGradient></defs>
+        <text x="32" y="29" text-anchor="middle" fill="var(--ink)" font-family="Orbitron,monospace" font-size="9" font-weight="700">87</text>
+        <text x="32" y="39" text-anchor="middle" fill="var(--p400)" font-family="Orbitron,monospace" font-size="6">SCORE</text>
+      </svg>
+    </div>
+
+    <div class="body-area">
+      <div class="avatar-side">
+        <div class="scan-overlay"></div>
+        <div class="hologram-tag">LIVE SCAN</div>
+        <div class="scan-line"></div>
+        <svg class="avatar-svg" viewBox="0 0 130 280" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="sG" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#D4956A"/><stop offset="100%" stop-color="#B57344"/></linearGradient>
+            <linearGradient id="tG" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#7C3AED"/><stop offset="100%" stop-color="#5B21B6"/></linearGradient>
+            <linearGradient id="pG" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#1E0A3C"/><stop offset="100%" stop-color="#0D0020"/></linearGradient>
+          </defs>
+          <ellipse cx="65" cy="272" rx="38" ry="7" fill="rgba(124,58,237,0.1)"/>
+          <rect x="38" y="180" width="22" height="88" rx="10" fill="url(#pG)"/>
+          <rect x="70" y="180" width="22" height="88" rx="10" fill="url(#pG)"/>
+          <ellipse cx="49" cy="268" rx="14" ry="7" fill="#2a0050"/>
+          <ellipse cx="81" cy="268" rx="14" ry="7" fill="#2a0050"/>
+          <rect x="28" y="100" width="74" height="85" rx="16" fill="url(#tG)"/>
+          <line x1="65" y1="107" x2="65" y2="180" stroke="rgba(255,255,255,0.2)" stroke-width="1.5"/>
+          <path d="M50 100 L65 116 L80 100" stroke="rgba(255,255,255,0.3)" stroke-width="2" fill="none"/>
+          <rect x="8" y="102" width="22" height="72" rx="11" fill="url(#sG)"/>
+          <rect x="100" y="102" width="22" height="72" rx="11" fill="url(#sG)"/>
+          <rect x="8" y="102" width="22" height="30" rx="11" fill="url(#tG)"/>
+          <rect x="100" y="102" width="22" height="30" rx="11" fill="url(#tG)"/>
+          <ellipse cx="19" cy="178" rx="10" ry="8" fill="url(#sG)"/>
+          <ellipse cx="111" cy="178" rx="10" ry="8" fill="url(#sG)"/>
+          <rect x="56" y="82" width="18" height="22" rx="8" fill="url(#sG)"/>
+          <ellipse cx="65" cy="64" rx="30" ry="33" fill="url(#sG)"/>
+          <path d="M35 54 Q37 26 65 25 Q93 26 95 54 Q90 33 65 32 Q40 33 35 54Z" fill="#2C1810"/>
+          <ellipse cx="35" cy="64" rx="5" ry="7" fill="#B07348"/>
+          <ellipse cx="95" cy="64" rx="5" ry="7" fill="#B07348"/>
+          <ellipse cx="53" cy="61" rx="5" ry="5.5" fill="white"/><ellipse cx="77" cy="61" rx="5" ry="5.5" fill="white"/>
+          <ellipse cx="54" cy="62" rx="3" ry="3.5" fill="#2C1810"/><ellipse cx="78" cy="62" rx="3" ry="3.5" fill="#2C1810"/>
+          <ellipse cx="55" cy="61" rx="1" ry="1" fill="white"/><ellipse cx="79" cy="61" rx="1" ry="1" fill="white"/>
+          <path d="M47 54 Q53 50 59 53" stroke="#2C1810" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+          <path d="M71 53 Q77 50 83 54" stroke="#2C1810" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+          <path d="M63 66 Q61 72 63 74 Q65 75 67 74 Q69 72 67 66" stroke="#A0522D" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+          <path d="M55 81 Q65 88 75 81" stroke="#A0522D" stroke-width="2" fill="none" stroke-linecap="round"/>
+          <rect x="53" y="136" width="24" height="16" rx="4" fill="rgba(255,255,255,0.15)" stroke="rgba(255,255,255,0.3)" stroke-width="1"/>
+          <text x="65" y="147" text-anchor="middle" fill="rgba(255,255,255,0.9)" font-size="6" font-family="Orbitron,monospace" font-weight="700">JARVIS</text>
+        </svg>
+        <div class="avatar-platform"></div>
+      </div>
+
+      <div class="stats-side">
+        <div class="stat-card">
+          <div class="stat-label">Height</div>
+          <div class="stat-value">175 <span>CM</span></div>
+          <div class="stat-bar"><div class="stat-bar-fill" style="width:72%"></div></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Weight</div>
+          <div class="stat-value">72 <span>KG</span></div>
+          <div class="stat-bar"><div class="stat-bar-fill" style="width:60%"></div></div>
+        </div>
+        <div class="vitals-row">
+          <div class="vital-mini"><div class="vital-mini-label">BMI</div><div class="vital-mini-value">23.5</div></div>
+          <div class="vital-mini"><div class="vital-mini-label">AGE</div><div class="vital-mini-value">24</div></div>
+        </div>
+        <div class="vitals-row">
+          <div class="vital-mini"><div class="vital-mini-label">FAT%</div><div class="vital-mini-value">18%</div></div>
+          <div class="vital-mini"><div class="vital-mini-label">WATER</div><div class="vital-mini-value">62%</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="categories-section">
+      <div class="cat-section-title">// command modules</div>
+      <div class="cat-grid">
+        <div class="cat-btn" onclick="goTo('study-page')"><div class="cat-icon">📚</div><div class="cat-name">Study</div></div>
+        <div class="cat-btn" onclick="goTo('gym-page')"><div class="cat-icon">🏋️</div><div class="cat-name">Gym</div></div>
+        <div class="cat-btn" onclick="goTo('workout-page')"><div class="cat-icon">⚡</div><div class="cat-name">Workout</div></div>
+        <div class="cat-btn" onclick="goTo('fashion-page')"><div class="cat-icon">👔</div><div class="cat-name">Fashion</div></div>
+        <div class="cat-btn" onclick="goTo('motivation-page')"><div class="cat-icon">🔥</div><div class="cat-name">Motivate</div></div>
+        <div class="cat-btn" onclick="goTo('mood-page')"><div class="cat-icon">🧠</div><div class="cat-name">Mood</div></div>
+        <div class="cat-btn" onclick="goTo('business-page')"><div class="cat-icon">💼</div><div class="cat-name">Business</div></div>
+        <div class="cat-btn" onclick="goTo('skincare-page')"><div class="cat-icon">✨</div><div class="cat-name">Skincare</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- STUDY -->
+  <div class="screen" id="study-page">
+    <div class="inner-page">
+      <div class="page-header"><div class="corner-accent"></div><div class="back-btn" onclick="goBack()">‹</div><div class="page-title-area"><div class="page-category-label">// Module 01</div><div class="page-title">STUDY HUB</div></div></div>
+      <div class="page-content">
+        <div class="info-card"><div class="info-card-title">Today's Focus</div>
+          <div class="progress-item"><div class="progress-header"><span class="progress-label">Mathematics</span><span class="progress-pct">75%</span></div><div class="progress-bar"><div class="progress-fill" style="width:75%"></div></div></div>
+          <div class="progress-item"><div class="progress-header"><span class="progress-label">Physics</span><span class="progress-pct">45%</span></div><div class="progress-bar"><div class="progress-fill" style="width:45%"></div></div></div>
+          <div class="progress-item"><div class="progress-header"><span class="progress-label">Programming</span><span class="progress-pct">90%</span></div><div class="progress-bar"><div class="progress-fill" style="width:90%"></div></div></div>
+        </div>
+        <div class="action-row">
+          <div class="action-tile"><div class="action-tile-icon">⏱️</div><div class="action-tile-label">Pomodoro</div></div>
+          <div class="action-tile"><div class="action-tile-icon">📝</div><div class="action-tile-label">Notes</div></div>
+          <div class="action-tile"><div class="action-tile-icon">🎯</div><div class="action-tile-label">Set Goals</div></div>
+          <div class="action-tile"><div class="action-tile-icon">📊</div><div class="action-tile-label">Analytics</div></div>
+        </div>
+        <div class="info-card"><div class="info-card-title">JARVIS Tip</div><p>Boss, you study best between 9AM–12PM. You're 34% more productive in this window. Calendar cleared.</p></div>
+        <div class="divider"></div>
+        <div class="tag-row"><div class="tag">Exam in 12 days</div><div class="tag">4hr streak</div><div class="tag">Top 5%</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- GYM -->
+  <div class="screen" id="gym-page">
+    <div class="inner-page">
+      <div class="page-header"><div class="corner-accent"></div><div class="back-btn" onclick="goBack()">‹</div><div class="page-title-area"><div class="page-category-label">// Module 02</div><div class="page-title">GYM INTEL</div></div></div>
+      <div class="page-content">
+        <div class="info-card"><div class="info-card-title">Body Stats Analysis</div>
+          <div class="progress-item"><div class="progress-header"><span class="progress-label">Muscle Mass</span><span class="progress-pct">68%</span></div><div class="progress-bar"><div class="progress-fill" style="width:68%"></div></div></div>
+          <div class="progress-item"><div class="progress-header"><span class="progress-label">Strength Index</span><span class="progress-pct">72%</span></div><div class="progress-bar"><div class="progress-fill" style="width:72%"></div></div></div>
+          <div class="progress-item"><div class="progress-header"><span class="progress-label">Endurance</span><span class="progress-pct">55%</span></div><div class="progress-bar"><div class="progress-fill" style="width:55%"></div></div></div>
+        </div>
+        <div class="action-row">
+          <div class="action-tile"><div class="action-tile-icon">🏋️</div><div class="action-tile-label">Log Lift</div></div>
+          <div class="action-tile"><div class="action-tile-icon">🥗</div><div class="action-tile-label">Nutrition</div></div>
+          <div class="action-tile"><div class="action-tile-icon">💤</div><div class="action-tile-label">Recovery</div></div>
+          <div class="action-tile"><div class="action-tile-icon">📈</div><div class="action-tile-label">Progress</div></div>
+        </div>
+        <div class="info-card"><div class="info-card-title">Today's Split: PUSH</div><p>Bench Press 4×8 · Overhead Press 3×10 · Incline DB 3×12 · Tricep Pushdown 3×15 · Lateral Raises 4×15</p><div class="tag-row" style="margin-top:10px"><div class="tag">Chest</div><div class="tag">Shoulders</div><div class="tag">Triceps</div></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- WORKOUT -->
+  <div class="screen" id="workout-page">
+    <div class="inner-page">
+      <div class="page-header"><div class="corner-accent"></div><div class="back-btn" onclick="goBack()">‹</div><div class="page-title-area"><div class="page-category-label">// Module 03</div><div class="page-title">WORKOUT ENGINE</div></div></div>
+      <div class="page-content">
+        <div class="info-card" style="background:linear-gradient(135deg,var(--p600),var(--p500));border-color:transparent;box-shadow:0 8px 28px rgba(124,58,237,0.3)">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <div><div style="font-family:'Orbitron',monospace;font-size:9px;letter-spacing:2px;color:rgba(255,255,255,0.7);text-transform:uppercase;margin-bottom:4px">Active Routine</div><div style="font-family:'Orbitron',monospace;font-size:22px;font-weight:900;color:white">Day 4 / 6</div><div style="font-family:'Exo 2',sans-serif;font-size:12px;color:rgba(255,255,255,0.75);margin-top:2px">Upper Body Power</div></div>
+            <div style="width:54px;height:54px;border-radius:50%;background:rgba(255,255,255,0.15);display:flex;align-items:center;justify-content:center;font-size:26px;border:2px solid rgba(255,255,255,0.3)">⚡</div>
+          </div>
+        </div>
+        <div class="step-card"><div class="step-num">1</div><div class="step-info"><div class="step-title">Warm Up — 10 min</div><div class="step-sub">Dynamic stretching + jump rope</div></div></div>
+        <div class="step-card"><div class="step-num">2</div><div class="step-info"><div class="step-title">Main Block — 40 min</div><div class="step-sub">4 compound lifts, 4×8 each</div></div></div>
+        <div class="step-card"><div class="step-num">3</div><div class="step-info"><div class="step-title">Accessory Work — 20 min</div><div class="step-sub">Isolation movements + core</div></div></div>
+        <div class="step-card"><div class="step-num">4</div><div class="step-info"><div class="step-title">Cool Down — 10 min</div><div class="step-sub">Static stretch + breathing</div></div></div>
+        <div style="height:8px"></div>
+        <div style="background:linear-gradient(90deg,var(--p600),var(--p400));border-radius:16px;padding:18px;text-align:center;cursor:pointer;box-shadow:0 6px 20px rgba(124,58,237,0.3)">
+          <div style="font-family:'Orbitron',monospace;font-size:13px;font-weight:700;color:white;letter-spacing:2px">▶  START SESSION</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FASHION -->
+  <div class="screen" id="fashion-page">
+    <div class="inner-page">
+      <div class="page-header"><div class="corner-accent"></div><div class="back-btn" onclick="goBack()">‹</div><div class="page-title-area"><div class="page-category-label">// Module 04</div><div class="page-title">STYLE MATRIX</div></div></div>
+      <div class="page-content">
+        <div class="info-card"><div class="info-card-title">Today's Rec</div><p>Boss, today is a work meeting + gym combo. I'm suggesting business-casual AM, athletic PM.</p></div>
+        <div class="outfit-card"><div class="outfit-color" style="background:var(--p50);border:1.5px solid var(--p100)">🌅</div><div class="outfit-info"><div class="outfit-name">Morning: Smart Casual</div><div class="outfit-desc">Dark chinos · White Oxford · Loafers</div></div></div>
+        <div class="outfit-card"><div class="outfit-color" style="background:var(--p50);border:1.5px solid var(--p100)">🌆</div><div class="outfit-info"><div class="outfit-name">Evening: Sporty Edge</div><div class="outfit-desc">Joggers · Oversized Tee · Sneakers</div></div></div>
+        <div class="outfit-card"><div class="outfit-color" style="background:var(--p50);border:1.5px solid var(--p100)">🌙</div><div class="outfit-info"><div class="outfit-name">Night Out: Elevated</div><div class="outfit-desc">Black slim fit · Chelsea boots · Chain</div></div></div>
+        <div class="divider"></div>
+        <div class="info-card"><div class="info-card-title">Style DNA</div><div class="tag-row"><div class="tag">Minimalist</div><div class="tag">Dark Tones</div><div class="tag">Structured</div><div class="tag">Futuristic</div></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MOTIVATION -->
+  <div class="screen" id="motivation-page">
+    <div class="inner-page">
+      <div class="page-header"><div class="corner-accent"></div><div class="back-btn" onclick="goBack()">‹</div><div class="page-title-area"><div class="page-category-label">// Module 05</div><div class="page-title">IGNITE PROTOCOL</div></div></div>
+      <div class="page-content">
+        <div class="quote-card"><div class="quote-mark">"</div><div class="quote-text">The difference between who you are and who you want to be is what you do.</div><div class="quote-author">— DAILY DIRECTIVE</div></div>
+        <div class="quote-card-light"><div class="quote-mark">"</div><div class="quote-text">Discipline is choosing between what you want now and what you want most.</div><div class="quote-author">— JARVIS CORE PRINCIPLE</div></div>
+        <div class="action-row">
+          <div class="action-tile"><div class="action-tile-icon">🎯</div><div class="action-tile-label">Daily Goals</div></div>
+          <div class="action-tile"><div class="action-tile-icon">🏆</div><div class="action-tile-label">Wins Today</div></div>
+          <div class="action-tile"><div class="action-tile-icon">🔁</div><div class="action-tile-label">New Quote</div></div>
+          <div class="action-tile"><div class="action-tile-icon">📌</div><div class="action-tile-label">Pin It</div></div>
+        </div>
+        <div class="info-card"><div class="info-card-title">Boss Streak</div><div style="display:flex;gap:10px;margin-top:4px;align-items:center"><div style="font-family:'Orbitron',monospace;font-size:40px;font-weight:900;color:var(--p500);line-height:1">14</div><div><div style="font-family:'Rajdhani',sans-serif;font-size:14px;color:var(--ink);font-weight:700">Days Consistent</div><div style="font-family:'Exo 2',sans-serif;font-size:11px;color:rgba(61,32,96,0.5);margin-top:2px">Don't break the chain, Boss.</div></div></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MOOD -->
+  <div class="screen" id="mood-page">
+    <div class="inner-page">
+      <div class="page-header"><div class="corner-accent"></div><div class="back-btn" onclick="goBack()">‹</div><div class="page-title-area"><div class="page-category-label">// Module 06</div><div class="page-title">MOOD SCANNER</div></div></div>
+      <div class="page-content">
+        <div class="info-card"><div class="info-card-title">How are you feeling, Boss?</div></div>
+        <div class="mood-grid">
+          <div class="mood-tile selected" onclick="selectMood(this)"><div class="mood-emoji">😤</div><div class="mood-label">Focused</div></div>
+          <div class="mood-tile" onclick="selectMood(this)"><div class="mood-emoji">😴</div><div class="mood-label">Tired</div></div>
+          <div class="mood-tile" onclick="selectMood(this)"><div class="mood-emoji">🔥</div><div class="mood-label">Energized</div></div>
+          <div class="mood-tile" onclick="selectMood(this)"><div class="mood-emoji">😟</div><div class="mood-label">Stressed</div></div>
+          <div class="mood-tile" onclick="selectMood(this)"><div class="mood-emoji">😎</div><div class="mood-label">Confident</div></div>
+          <div class="mood-tile" onclick="selectMood(this)"><div class="mood-emoji">😐</div><div class="mood-label">Neutral</div></div>
+        </div>
+        <div class="divider"></div>
+        <div class="info-card"><div class="info-card-title">JARVIS Reads</div><p>Detected: High focus mode. Recommended: Deep work session now, 2hr block. Hydrate. Avoid social media until 14:00.</p></div>
+        <div class="info-card"><div class="info-card-title">Mood This Week</div>
+          <div style="display:flex;gap:6px;align-items:flex-end;height:52px;margin-top:4px">
+            <div style="flex:1;background:var(--p100);border-radius:4px 4px 0 0;height:40%"></div>
+            <div style="flex:1;background:var(--p200);border-radius:4px 4px 0 0;height:70%"></div>
+            <div style="flex:1;background:var(--p100);border-radius:4px 4px 0 0;height:55%"></div>
+            <div style="flex:1;background:var(--p200);border-radius:4px 4px 0 0;height:85%"></div>
+            <div style="flex:1;background:var(--p100);border-radius:4px 4px 0 0;height:45%"></div>
+            <div style="flex:1;background:var(--p500);border-radius:4px 4px 0 0;height:95%;box-shadow:0 0 10px rgba(124,58,237,0.25)"></div>
+            <div style="flex:1;background:var(--p200);border-radius:4px 4px 0 0;height:80%"></div>
+          </div>
+          <div style="display:flex;gap:6px;margin-top:5px">
+            <div style="flex:1;font-family:'Orbitron',monospace;font-size:7px;color:rgba(61,32,96,0.4);text-align:center">M</div><div style="flex:1;font-family:'Orbitron',monospace;font-size:7px;color:rgba(61,32,96,0.4);text-align:center">T</div><div style="flex:1;font-family:'Orbitron',monospace;font-size:7px;color:rgba(61,32,96,0.4);text-align:center">W</div><div style="flex:1;font-family:'Orbitron',monospace;font-size:7px;color:rgba(61,32,96,0.4);text-align:center">T</div><div style="flex:1;font-family:'Orbitron',monospace;font-size:7px;color:rgba(61,32,96,0.4);text-align:center">F</div><div style="flex:1;font-family:'Orbitron',monospace;font-size:7px;color:var(--p500);text-align:center;font-weight:700">S</div><div style="flex:1;font-family:'Orbitron',monospace;font-size:7px;color:rgba(61,32,96,0.4);text-align:center">S</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- BUSINESS -->
+  <div class="screen" id="business-page">
+    <div class="inner-page">
+      <div class="page-header"><div class="corner-accent"></div><div class="back-btn" onclick="goBack()">‹</div><div class="page-title-area"><div class="page-category-label">// Module 07</div><div class="page-title">COMMAND CENTER</div></div></div>
+      <div class="page-content">
+        <div class="metric-row">
+          <div class="metric-card"><div class="metric-icon">💰</div><div class="metric-value">RM 8.4K</div><div class="metric-label">Revenue MTD</div></div>
+          <div class="metric-card"><div class="metric-icon">📈</div><div class="metric-value">+24%</div><div class="metric-label">Growth Rate</div></div>
+          <div class="metric-card"><div class="metric-icon">🤝</div><div class="metric-value">12</div><div class="metric-label">Active Clients</div></div>
+          <div class="metric-card"><div class="metric-icon">⏳</div><div class="metric-value">3</div><div class="metric-label">Pending Deals</div></div>
+        </div>
+        <div class="info-card"><div class="info-card-title">Priority Tasks</div>
+          <div class="step-card" style="margin-bottom:8px"><div class="step-num" style="background:linear-gradient(135deg,#DC2626,#EF4444)">!</div><div class="step-info"><div class="step-title">Finalize Q2 proposal</div><div class="step-sub">Due: Today 5PM</div></div></div>
+          <div class="step-card" style="margin-bottom:8px"><div class="step-num">2</div><div class="step-info"><div class="step-title">Client call — Ahmad</div><div class="step-sub">Tomorrow 10AM</div></div></div>
+          <div class="step-card" style="margin-bottom:0"><div class="step-num" style="background:linear-gradient(135deg,var(--p400),var(--p200))">3</div><div class="step-info"><div class="step-title">Update portfolio site</div><div class="step-sub">This week</div></div></div>
+        </div>
+        <div class="action-row">
+          <div class="action-tile"><div class="action-tile-icon">📄</div><div class="action-tile-label">Invoices</div></div>
+          <div class="action-tile"><div class="action-tile-icon">🗓️</div><div class="action-tile-label">Calendar</div></div>
+          <div class="action-tile"><div class="action-tile-icon">📣</div><div class="action-tile-label">Marketing</div></div>
+          <div class="action-tile"><div class="action-tile-icon">💡</div><div class="action-tile-label">Ideation</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SKINCARE -->
+  <div class="screen" id="skincare-page">
+    <div class="inner-page">
+      <div class="page-header"><div class="corner-accent"></div><div class="back-btn" onclick="goBack()">‹</div><div class="page-title-area"><div class="page-category-label">// Module 08</div><div class="page-title">SKIN PROTOCOL</div></div></div>
+      <div class="page-content">
+        <div class="info-card"><div class="info-card-title">Skin Profile</div><p>Type: <strong style="color:var(--p500)">Combination</strong> · Concern: Oiliness, Dark spots · UV Index Today: <strong style="color:var(--p500)">7 (High)</strong></p><div class="tag-row" style="margin-top:10px"><div class="tag">SPF Required</div><div class="tag">Hydrate++</div><div class="tag">Niacinamide</div></div></div>
+        <div style="font-family:'Orbitron',monospace;font-size:9px;letter-spacing:2px;color:var(--p500);margin-bottom:10px;text-transform:uppercase">Morning Routine</div>
+        <div class="step-card"><div class="step-num">1</div><div class="step-info"><div class="step-title">Gentle Cleanser</div><div class="step-sub">Cerave or La Roche-Posay · 60 sec</div></div></div>
+        <div class="step-card"><div class="step-num">2</div><div class="step-info"><div class="step-title">Niacinamide Serum</div><div class="step-sub">The Ordinary 10% · 2 drops</div></div></div>
+        <div class="step-card"><div class="step-num">3</div><div class="step-info"><div class="step-title">Lightweight Moisturizer</div><div class="step-sub">Oil-free · Gel formula preferred</div></div></div>
+        <div class="step-card"><div class="step-num">4</div><div class="step-info"><div class="step-title">SPF 50+ Sunscreen</div><div class="step-sub">MANDATORY today · UV Index 7</div></div></div>
+        <div class="divider"></div>
+        <div class="info-card"><div class="info-card-title">7-Day Skin Score</div><div style="font-family:'Orbitron',monospace;font-size:40px;font-weight:900;color:var(--p500);text-align:center;padding:8px 0">82<span style="font-size:14px;color:rgba(61,32,96,0.35)">/100</span></div><p style="text-align:center;color:rgba(61,32,96,0.55)">Improving. Keep the SPF consistent, Boss.</p></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+<script>
+  let cur='home', hist=[];
+  function goTo(id){
+    const c=document.getElementById(cur), n=document.getElementById(id);
+    if(!n)return;
+    c.classList.remove('active'); c.classList.add('exit-left');
+    setTimeout(()=>c.classList.remove('exit-left'),400);
+    n.style.transform='translateX(26px)'; n.classList.add('active');
+    hist.push(cur); cur=id;
+  }
+  function goBack(){
+    if(!hist.length)return;
+    const p=hist.pop(), c=document.getElementById(cur), pv=document.getElementById(p);
+    c.classList.remove('active');
+    pv.style.transform='translateX(-26px)'; pv.classList.add('active');
+    setTimeout(()=>{pv.style.transform='';},10);
+    cur=p;
+  }
+  function selectMood(el){ document.querySelectorAll('.mood-tile').forEach(t=>t.classList.remove('selected')); el.classList.add('selected'); }
+  const obs=new MutationObserver(ms=>{ms.forEach(m=>{if(m.target.classList.contains('active')){m.target.querySelectorAll('.progress-fill,.stat-bar-fill').forEach(f=>{const w=f.style.width;f.style.width='0';requestAnimationFrame(()=>requestAnimationFrame(()=>{f.style.transition='width .9s cubic-bezier(.4,0,.2,1)';f.style.width=w;}));});}});});
+  document.querySelectorAll('.screen').forEach(s=>obs.observe(s,{attributes:true,attributeFilter:['class']}));
+</script>
+</body>
+</html>
