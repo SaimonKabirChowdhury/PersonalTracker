@@ -1,3 +1,4 @@
+# PersonalTracker
 # JARVIS Flutter Conversion
 
 This workspace now contains a Flutter implementation of the original HTML app using a simple Provider architecture and separated layers.
